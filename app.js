@@ -9,6 +9,14 @@ app.use(express.json());
 
 let db = null;
 
+const convertStateObjectResponseObject = (dbObject) => {
+  return {
+    stateId: dbObject.state_id,
+    stateName: dbObject.state_name,
+    population: dbObject.population,
+  };
+};
+
 const initializationDBAndServer = async () => {
   try {
     db = await open({
@@ -26,14 +34,6 @@ const initializationDBAndServer = async () => {
 
 initializationDBAndServer();
 
-const convertStateObjectResponseObject = (dbObject) => {
-  return {
-    stateId: dbObject.state_id,
-    stateName: dbObject.state_name,
-    population: dbObject.population,
-  };
-};
-
 const reportSnakeToCamelCase = (newObject) => {
   return {
     totalCases: newObject.cases,
@@ -43,12 +43,35 @@ const reportSnakeToCamelCase = (newObject) => {
   };
 };
 
+const convertStateIdToObject = (dbObject) => {
+  return {
+    stateId: dbObject.state_id,
+    stateName: dbObject.state_name,
+    population: dbObject.population,
+  };
+};
+
+const convertDistrictIdToObject = (dbObject) => {
+  return {
+    districtId: dbObject.district_id,
+    districtName: dbObject.district_name,
+    stateId: dbObject.state_id,
+    cases: dbObject.cases,
+    cured: dbObject.cured,
+    active: dbObject.active,
+    deaths: dbObject.deaths,
+  };
+};
+
 app.get("/states/", async (request, response) => {
   const getStateQuery = `
     SELECT * FROM
     state;`;
   const states = await db.all(getStateQuery);
-  response.send(states);
+  const stateResult = states.map((eachItem) => {
+    return convertStateObjectResponseObject(eachItem);
+  });
+  response.send(stateResult);
 });
 
 app.get("/states/:stateId/", async (request, response) => {
@@ -58,7 +81,7 @@ app.get("/states/:stateId/", async (request, response) => {
     state
     WHERE state_id = ${stateId};`;
   const state = await db.get(getStateIdQuery);
-  response.send(state);
+  response.send(convertStateIdToObject(state));
 });
 
 app.post("/districts/", async (request, response) => {
@@ -74,7 +97,7 @@ app.post("/districts/", async (request, response) => {
         ${deaths}
     );`;
   const addDistrict = await db.run(postDistrictQuery);
-  //const districtId = addDistrict.lastId;
+  const districtId = addDistrict.lastId;
   response.send("District Successfully Added");
 });
 
@@ -85,7 +108,8 @@ app.get("/districts/:districtId", async (request, response) => {
     district
     WHERE district_id = ${districtId};`;
   const districts = await db.get(getDistrict);
-  response.send(districts);
+  const districtResult = convertDistrictIdToObject(districts);
+  response.send(districtResult);
 });
 
 app.delete("/districts/:districtId/", async (request, response) => {
